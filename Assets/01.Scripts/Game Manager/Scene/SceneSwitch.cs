@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System;
 
 public class SceneSwitch : MonoBehaviour
 {
@@ -22,37 +23,68 @@ public class SceneSwitch : MonoBehaviour
     {
         if (goPlayButton != null)
         {
-            goPlayButton.onClick.AddListener(() => GameSceneManager.Instance.LoadSceneByName("InGame"));
+            goPlayButton.onClick.AddListener(() => {
+                StartTransition(() => {
+                    GameSceneManager.Instance.LoadSceneByName("InGame");
+                });
+            });
+
         }
 
         if (goShopButton != null)
         {
             goShopButton.onClick.AddListener(() => {
-                if (RoundManager.Instance != null) RoundManager.Instance.EarnPlayerCoin();
-                GameSceneManager.Instance.LoadSceneByName("Shop");
+                StartTransition(() => {
+                    if (RoundManager.Instance != null) RoundManager.Instance.EarnPlayerCoin();
+                    if (RoundManager.Instance != null) RoundManager.Instance.PrepareNextRound();
+                    GameSceneManager.Instance.LoadSceneByName("Shop");
+                });
             });
         }
 
         if (goNextRoundButton != null)
         {
             goNextRoundButton.onClick.AddListener(() => {
-                if (RoundManager.Instance != null)
-                {
-                    RoundManager.Instance.PrepareNextRound();
-                }
-                GameSceneManager.Instance.LoadSceneByName("InGame"); 
+                StartTransition(() => {
+                    GameSceneManager.Instance.LoadSceneByName("InGame");
+                });
 
             });
         }
 
         if (goTitleButton != null)
         {
-            goTitleButton.onClick.AddListener(() => GameSceneManager.Instance.LoadSceneByName("Title"));
+            goTitleButton.onClick.AddListener(() =>
+            {
+                GameSceneManager.Instance.LoadSceneByName("Title");
+                RoundManager.Instance?.SetRoundInfo();
+                JokerSlot.Instance?.ResetJokerSlot();
+                ConsumableSlot.Instance?.ResetPlanetSlot();
+            });
         }
 
         if (goRestartButton != null)
         {
-            goRestartButton.onClick.AddListener(() => GameSceneManager.Instance.LoadSceneByName("InGame"));
+            goRestartButton.onClick.AddListener(() => StartTransition(() => {
+                RoundManager.Instance?.SetRoundInfo();
+                JokerSlot.Instance?.ResetJokerSlot();
+                ConsumableSlot.Instance?.ResetPlanetSlot();
+                GameSceneManager.Instance.LoadSceneByName("InGame");
+            }));
+        }
+    }
+
+    private void StartTransition(Action onLoadAction)
+    {
+        if (TransitionManager.Instance != null)
+        {
+            TransitionManager.Instance.PlayFadeIn(() => {
+                onLoadAction?.Invoke();
+            });
+        }
+        else
+        {
+            onLoadAction?.Invoke();
         }
     }
 }

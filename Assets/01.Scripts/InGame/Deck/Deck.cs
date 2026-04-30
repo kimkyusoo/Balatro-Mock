@@ -20,6 +20,9 @@ public class Deck : MonoBehaviour
 
     public void Awake()
     {
+        fullDeck.Clear();
+        discardPack.Clear();
+
         CreateDeck();
         ShuffleDeck();
         UpdateDeckUI();
@@ -61,6 +64,7 @@ public class Deck : MonoBehaviour
         if (fullDeck.Count > 0)
         {
             PlayCard card = fullDeck[0];
+            discardPack.Add(card);
             fullDeck.RemoveAt(0);
             UpdateDeckUI();
             return card;

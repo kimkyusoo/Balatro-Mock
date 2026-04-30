@@ -7,31 +7,31 @@ public class PlayerInputController : MonoBehaviour
     public LayerMask cardLayer;
 
 
-    private void Awake()
-    {
-        if(playerInputReader == null)
-        {
-            playerInputReader = GetComponent<PlayerInputReader>();
-        }
+    //private void Awake()
+    //{
+    //    if(playerInputReader == null)
+    //    {
+    //        playerInputReader = GetComponent<PlayerInputReader>();
+    //    }
 
-        if(hand == null)
-        {
-            hand = GetComponent<Hand>();
-        }
-    }
+    //    if(hand == null)
+    //    {
+    //        hand = GetComponent<Hand>();
+    //    }
+    //}
 
-    private void Update()
-    {
-        if (playerInputReader == null || hand == null) return;
+    //private void Update()
+    //{
+    //    if (playerInputReader == null || hand == null) return;
 
-        if (playerInputReader.ThrowAwayCardPressedThisFrame)
-        {
-            hand.ThrowAwayCard();
-        }
+    //    if (playerInputReader.ThrowAwayCardPressedThisFrame)
+    //    {
+    //        hand.ThrowAwayCard();
+    //    }
 
-        if (playerInputReader.CalculateCardPressedThisFrame)
-        {
-            hand.CalculateCard();
-        }
-    }
+    //    if (playerInputReader.CalculateCardPressedThisFrame)
+    //    {
+    //        hand.CalculateCard();
+    //    }
+    //}
 }

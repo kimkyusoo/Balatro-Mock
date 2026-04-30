@@ -1,5 +1,7 @@
 
+using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class BaseCard : MonoBehaviour
 {
@@ -8,7 +10,8 @@ public class BaseCard : MonoBehaviour
     public string cardName;
     [TextArea(1, 3)] public string description;
 
-    public CardType cardType;
+    public GameObject descriptionPanel;
+    public TextMeshProUGUI descriptionText;
 
     public void Initalize(string cardId, string cardName, string description)
     {
@@ -17,14 +20,20 @@ public class BaseCard : MonoBehaviour
         this.description = description;
     }
 
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (descriptionPanel != null)
+        {
+            descriptionText.text = description;
+            descriptionPanel.SetActive(true);
+        }
+    }
 
-    //public virtual void Add()
-    //{
-    //    Debug.Log($"{cardName} 카드를 추가하였습니다.");
-    //}
-
-    //public virtual void Remove()
-    //{
-    //    Debug.Log($"{cardName} 카드를 삭제하였습니다.");
-    //}
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        if (descriptionPanel != null)
+        {
+            descriptionPanel.SetActive(false);
+        }
+    }
 }

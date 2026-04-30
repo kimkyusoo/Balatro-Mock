@@ -50,3 +50,13 @@ public enum JokerEffectType
     ClubBonus,
     BuildMult,
 }
+
+public enum VoucherEffect
+{
+    None,
+    AddHands,
+    AddDiscards,
+    TwiceCoin,
+    AddHandsAndReduceDiscards,
+    AddDiscardsAndReduceHands
+}

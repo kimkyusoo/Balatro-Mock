@@ -8,24 +8,19 @@ public class ShopUI : MonoBehaviour
     public ShopManager shopManager;
 
     public Transform jokerProductArea;
-    //public Transform[] consumableShelf;
-
-    //[Header("Card Pack Buttons")]
-    //public Button tarotPackButton;
-    //public Button planetPackButton;
+    public Transform planetProductArea;
+    public Transform voucherProductArea;
 
     public TextMeshProUGUI shopCoinText;
 
     [Header("Control Buttons")]
     public Button rerollButton;
-    public Button buyButton;
 
     [Header("Text Info")]
     public TextMeshProUGUI rerollCostText;
 
     public Transform slotUIParent;
 
-    public AudioClip shopMusic;
 
     public void Awake()
     {
@@ -43,11 +38,7 @@ public class ShopUI : MonoBehaviour
         {
             JokerSlot.Instance.SetupSlotPosition(slotUIParent);
         }
-
-        if (SoundManager.Instance != null && shopMusic != null)
-        {
-            SoundManager.Instance.PlayBgm(shopMusic, 0.3f);
-        }
+        
         UpdateShopInfo();
     }
 
@@ -66,12 +57,56 @@ public class ShopUI : MonoBehaviour
         UpdateShopInfo();
     }
 
-    private void ClearJokerSlots()
+    public void RefreshPlanetDisplay(List<PlanetCard> planetCards)
+    {
+        ClearPlanetSlots();
+
+        foreach (PlanetCard card in planetCards)
+        {
+            card.gameObject.SetActive(true);
+            card.transform.SetParent(planetProductArea);
+            card.transform.localScale = Vector3.one;
+            card.transform.localPosition = Vector3.zero;
+        }
+    }
+
+    public void RefreshVoucherDisplay(List<VoucherCard> voucherCards)
+    {
+        ClearVoucherSlots();
+
+        foreach (VoucherCard card in voucherCards)
+        {
+            card.gameObject.SetActive(true);
+            card.transform.SetParent(voucherProductArea);
+            card.transform.localScale = Vector3.one;
+            card.transform.localPosition = Vector3.zero;
+        }
+    }
+
+    public void ClearJokerSlots()
     {
         foreach (Transform child in jokerProductArea)
         {
             child.gameObject.SetActive(false);
             child.SetParent(shopManager.jokerParent);
+        }
+    }
+
+    public void ClearPlanetSlots()
+    {
+        foreach (Transform child in planetProductArea)
+        {
+            child.gameObject.SetActive(false);
+            child.SetParent(shopManager.planetParent);
+        }
+    }
+
+    public void ClearVoucherSlots()
+    {
+        foreach (Transform child in voucherProductArea)
+        {
+            child.gameObject.SetActive(false);
+            child.SetParent(shopManager.voucherParent);
         }
     }
 

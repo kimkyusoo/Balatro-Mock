@@ -20,6 +20,8 @@ public class SoundManager : MonoBehaviour
     [Tooltip("비어 있으면 Awake에서 자동 생성한다. SFX 전용 AudioSource.")]
     [SerializeField] private AudioSource sfxSource;
 
+    public float currentVolume = 0.5f;
+
     private void Awake()
     {
         // [Singleton 1단계] 이미 인스턴스가 있고, 그 인스턴스가 나 자신이 아니면 중복 오브젝트다.
@@ -119,6 +121,16 @@ public class SoundManager : MonoBehaviour
 
         sfxSource.playOnAwake = false;
         sfxSource.loop = false;
+    }
+
+    public void SetMasterVolume(float volume)
+    {
+        currentVolume = Mathf.Clamp01(volume);
+
+        if (bgmSource != null)
+        {
+            bgmSource.volume = currentVolume;
+        }
     }
 }
 

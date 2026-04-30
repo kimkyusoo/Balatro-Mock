@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using DG.Tweening;
 
 public class RoundManager : MonoBehaviour
 {
@@ -17,6 +18,8 @@ public class RoundManager : MonoBehaviour
     public int gameRound;
     public int playerCoin;
     public HandRanking playRanking;
+    [SerializeField] private int[] baseScores = { 300, 800, 2000, 5000, 11000, 20000, 30000, 50000 };
+    public List<VoucherEffect> voucherEffects = new List<VoucherEffect>();
 
     [Header("Game Round Info Text")]
     public TextMeshProUGUI remainHandText;
@@ -45,6 +48,7 @@ public class RoundManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
+            transform.SetParent(null);
             DontDestroyOnLoad(gameObject);
             SetRoundInfo();
         }
@@ -63,6 +67,7 @@ public class RoundManager : MonoBehaviour
         CardCalculator.scoreChanged += SetScore;
         CardCalculator.chipChanged += SetChipAndMult;
         HandEvaluator.rankingChanged += SetRanking;
+        JokerSlot.jokerChipChanged += SetChipAndMult;
     }
 
     private void OnDisable()
@@ -70,6 +75,7 @@ public class RoundManager : MonoBehaviour
         CardCalculator.scoreChanged -= SetScore;
         CardCalculator.chipChanged -= SetChipAndMult;
         HandEvaluator.rankingChanged -= SetRanking;
+        JokerSlot.jokerChipChanged -= SetChipAndMult;
     }
 
     public void SetRoundInfo()
@@ -104,20 +110,30 @@ public class RoundManager : MonoBehaviour
         remainHand = 4;
         remainDiscard = 3;
         playRanking = HandRanking.None;
+        playChip = 0;
+        playMult = 0;
+
+        ApplyRoundChanges();
 
         UpdateGameInfo();
     }
 
     private int SetGoalScore()
     {
-        int baseScore = 300 * (gameRound + 1);
+        int anteIndex = (gameRound - 1) / 3;
 
-        if(gameRound % 3 == 0)
+        int roundIndex = ((gameRound - 1) % 3) + 1;
+
+        if (anteIndex >= baseScores.Length)
         {
-            baseScore *= 2;
+            anteIndex = baseScores.Length - 1;
         }
 
-        return baseScore;
+        int baseScore = baseScores[anteIndex];
+
+        int finalScore = baseScore * roundIndex;
+
+        return finalScore;
     }
     public void SetRanking(HandRanking ranking)
     {
@@ -137,8 +153,22 @@ public class RoundManager : MonoBehaviour
 
     public void SetChipAndMult(int chip, float mult)
     {
-        playChip = chip;
-        playMult = mult;
+        if (chip == 0 && mult == 0)
+        {
+            playChip = 0;
+            playMult = 0;
+        }
+
+        if (chip > 0)
+        {
+            playChip = chip;
+        }
+
+        if(mult > 0)
+        {
+            playMult = mult;
+        }
+
         UpdateGameInfo();
     }
 
@@ -181,7 +211,10 @@ public class RoundManager : MonoBehaviour
     {
         playChip = 0;
         playMult = 0;
-        
+        playRanking = HandRanking.None;
+
+        UpdateGameInfo();
+
         if (playerTotalScore < targetScore)
         {
             if(remainHand > 0)
@@ -202,21 +235,37 @@ public class RoundManager : MonoBehaviour
 
     public void UpdateGameInfo()
     {
-        if(remainHandText != null) remainHandText.text = $"{remainHand}";
-        if(remainDiscardText !=null) remainDiscardText.text = $"{remainDiscard}";
+        if (remainHandText != null) UpdateTextWithJuice(remainHandText, $"{remainHand}");
+        if (remainDiscardText !=null) UpdateTextWithJuice(remainDiscardText, $"{remainDiscard}");
         if (targetScoreText != null) targetScoreText.text = $"{targetScore}";
-        if (playerTotalScoreText != null) playerTotalScoreText.text = $"{playerTotalScore}";
-        if (gameRoundText != null) gameRoundText.text = $"{gameRound}";
-        if (playChipText != null) playChipText.text = $"{playChip}";
-        if (playMultText != null) playMultText.text = $"{playMult}";
-        if (playerCoinText != null) playerCoinText.text = $"{playerCoin}";
-        if(playRanking == HandRanking.None)
+        if (playerTotalScoreText != null) UpdateTextWithJuice(playerTotalScoreText, $"{playerTotalScore}");
+        if (gameRoundText != null) UpdateTextWithJuice(gameRoundText, $"{gameRound}");
+        if (playChipText != null) UpdateTextWithJuice(playChipText, $"{playChip}", true);
+        if (playMultText != null) UpdateTextWithJuice(playMultText, $"{playMult}", true);
+        if (playerCoinText != null) UpdateTextWithJuice(playerCoinText,$"{playerCoin}");
+
+        string rankString = (playRanking == HandRanking.None) ? "" : $"{playRanking}";
+
+        if(playRankingText != null)
         {
-            if (playRankingText != null) playRankingText.text = $"";
-        }
-        else
-        {
-            if (playRankingText != null) playRankingText.text = $"{playRanking}";
+            if (playRanking != HandRanking.None && playRankingText.text != rankString)
+            {
+                playRankingText.text = rankString;
+
+                playRankingText.transform.DOKill();
+
+                playRankingText.transform.DOPunchPosition(Vector3.up * 10f, 0.3f);
+                playRankingText.transform.DOPunchScale(Vector3.one * 0.2f, 0.3f);
+            }
+            else
+            {
+                playRankingText.text = rankString;
+
+                if (playRanking == HandRanking.None)
+                {
+                    playRankingText.transform.localScale = Vector3.one;
+                }
+            }
         }
     }
 
@@ -239,6 +288,14 @@ public class RoundManager : MonoBehaviour
         if (playerCoin < requireCoin) return;
 
         playerCoin -= requireCoin;
+        UpdateGameInfo();
+    }
+
+    public void SavePlayerCoin(int requireCoin)
+    {
+        if (requireCoin <= 0) return;
+
+        playerCoin += requireCoin;
         UpdateGameInfo();
     }
 
@@ -327,11 +384,12 @@ public class RoundManager : MonoBehaviour
 
     public string GetMostPlayedHandName()
     {
+        int playCount = 0;
+        string mostHandText = "";
         if (handPlayHistory == null) return "" ;
         if (handPlayHistory.Count == 0) return "";
 
         HandRanking mostPlayedHand = HandRanking.None;
-        int playCount = 0;
         
         foreach (KeyValuePair<HandRanking, int> hand in handPlayHistory)
         {
@@ -341,6 +399,68 @@ public class RoundManager : MonoBehaviour
                 playCount = hand.Value;
             }
         }
-        return $"{mostPlayedHand} ({playCount})";
+        switch (mostPlayedHand)
+        {
+            case HandRanking.HighCard: mostHandText = "하이카드"; break;
+            case HandRanking.OnePair: mostHandText = "원페어"; break;
+            case HandRanking.TwoPair: mostHandText = "투페어"; break;
+            case HandRanking.Triple: mostHandText = "트리플"; break;
+            case HandRanking.FourCard: mostHandText = "포카드"; break;
+            case HandRanking.FullHouse: mostHandText = "풀하우스"; break;
+            case HandRanking.Straight: mostHandText = "스트레이트"; break;
+            case HandRanking.Flush: mostHandText = "플러시"; break;
+            case HandRanking.StraightFlush: mostHandText = "스트레이트 플러시"; break;
+        }
+        return $"{mostHandText} ({playCount})";
     }
+
+    public void UpdateTextWithJuice(TextMeshProUGUI targetText, string newText, bool isCritical = false)
+    {
+        if(targetText.text == newText) return;
+
+        targetText.transform.DOKill();
+
+        targetText.transform.localScale = Vector3.one;
+        targetText.text = newText;
+
+        if (isCritical)
+        {
+            targetText.transform.DOPunchScale(new Vector3(0.3f, 0.3f, 0.3f), 0.2f, 10, 1f);
+        }
+        else
+        {
+            targetText.transform.DOShakePosition(0.2f, 5f, 20);
+        }
+    }
+    public void AddVoucherEffect(VoucherEffect voucherEffect)
+    {
+        if (voucherEffect == VoucherEffect.TwiceCoin)
+        {
+            playerCoin += 15;
+            UpdateGameInfo();
+            return; 
+        }
+
+        if (!voucherEffects.Contains(voucherEffect))
+        {
+            voucherEffects.Add(voucherEffect);
+        }
+        ApplyRoundChanges();
+    }
+
+    public void ApplyRoundChanges()
+    {
+        foreach (VoucherEffect effect in voucherEffects)
+        {
+            switch (effect)
+            {
+                case VoucherEffect.AddHands: remainHand += 1; break;
+                case VoucherEffect.AddDiscards: remainDiscard += 1; break;
+                case VoucherEffect.AddHandsAndReduceDiscards: remainHand += 1; remainDiscard -= 1; break;
+                case VoucherEffect.AddDiscardsAndReduceHands: remainHand -= 1; remainDiscard += 1; break;
+            }
+        }
+        UpdateGameInfo();
+    }
+
 }

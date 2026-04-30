@@ -1,4 +1,6 @@
+using DG.Tweening;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class CardCalculator
@@ -11,39 +13,76 @@ public class CardCalculator
     public static event Action<int> scoreChanged;
     public static event Action<int, float> chipChanged;
 
-    public void CalculateScore(HandEvaluator handEvaluator)
+    public void CalculateScoreToSequence(List<PlayCard> selectedCards, HandEvaluator handEvaluator, Vector3 centerPos, Action onCompleted)
     {
-        //Debug.Log($"CalculateScore, chip: {chip}, mult: {mult}");
-        JokerScoreRecord score = new JokerScoreRecord(chip, mult);
-        currentScore = 0;
-       
-        if (handEvaluator == null) {
-            Debug.Log("handEvaluator가 없습니다.");
-            return;
-        }
-
+        if (handEvaluator == null) return;
         if (!RoundManager.Instance.ConsumeHandCount()) return;
 
         SetHandBaseScore(handEvaluator.handRanking);
         RoundManager.Instance.CheckPlayeRanking(handEvaluator.handRanking);
 
+        JokerScoreRecord scoreRecord = new JokerScoreRecord(chip, mult);
 
-        CheckCardChip(handEvaluator);
+        Sequence sequence = DOTween.Sequence();
 
+        float spacing = 240f;
+        float startX = -(selectedCards.Count - 1) * spacing * 0.5f;
+
+        for (int i = 0; i < selectedCards.Count; i++)
+        {
+            PlayCard card = selectedCards[i];
+            Vector3 targetPos = centerPos + new Vector3(startX + (i * spacing), 0, 0);
+            sequence.Join(card.PlayFocusAnimation(targetPos, i * 0.05f));
+        }
+
+        sequence.AppendInterval(0.3f);
+
+        // 족보기여 카드별 계산
+        foreach (PlayCard card in handEvaluator.scoreCards)
+        {
+            sequence.AppendCallback(() =>
+            {
+                card.PlayScoringPunch();
+
+
+                scoreRecord.totalChip += card.baseChip;
+                chip = scoreRecord.totalChip;
+                UpdateChipAndMult();
+            });
+            sequence.AppendInterval(0.25f);
+        }
+
+        // 조커 효과 계산
         JokerSlot jokerSlot = UnityEngine.Object.FindAnyObjectByType<JokerSlot>();
-        if(jokerSlot != null ) jokerSlot.CalculateJokerEffect(score);
+        if (jokerSlot != null && jokerSlot.hasJokerCount > 0)
+        {
+            jokerSlot.AddJokerSequence(sequence, scoreRecord, () => {
+                chip = scoreRecord.totalChip;
+                mult = scoreRecord.totalMult;
+                UpdateChipAndMult();
+            });
 
+            sequence.AppendInterval(0.2f);
+        }
 
-        float calculateScore = (float)((score.totalChip + chip) * score.totalMult);
-        //Debug.Log($"CalculateScore, calculateScore : {calculateScore}");
-        currentScore = Mathf.RoundToInt(calculateScore);
-        RoundManager.Instance.CheckMostScore(currentScore);
-        //Debug.Log($"CalculateScore, currentScore : {totalScore}");
-        totalScore += currentScore;
-        //Debug.Log($"CalculateScore, totalScore : {totalScore}");
-        UpdateScoreUI();
+        // 최종 Score 계산
+        sequence.AppendCallback(() =>
+        {
+            float calculateScore = (float)(scoreRecord.totalChip * scoreRecord.totalMult);
+            currentScore = Mathf.RoundToInt(calculateScore);
 
-        RoundManager.Instance.IsReachedTargetScore();
+            RoundManager.Instance.CheckMostScore(currentScore);
+            totalScore += currentScore;
+
+            UpdateScoreUI();
+
+            RoundManager.Instance.IsReachedTargetScore();
+        });
+
+        sequence.OnComplete(() =>
+        {
+            onCompleted?.Invoke();
+        });
     }
 
     public void CheckCardChip(HandEvaluator handEvaluator)
@@ -71,7 +110,11 @@ public class CardCalculator
         chip = 0;
         mult = 0;
 
-        if (cardRanking == HandRanking.None) return;
+        if (cardRanking == HandRanking.None)
+        {
+            UpdateChipAndMult(); 
+            return;
+        }
         switch(cardRanking){
             case HandRanking.HighCard: chip = chip + 5; mult = 1; break;
             case HandRanking.OnePair: chip = chip + 10; mult = 2; break;
@@ -83,11 +126,13 @@ public class CardCalculator
             case HandRanking.FourCard: chip = chip + 60; mult = 7; break;
             case HandRanking.StraightFlush: chip = chip + 100; mult = 8; break;
         }
+
+        PlanetCard.ApplyEnforceHandRanking(cardRanking, this);
         UpdateChipAndMult();
         //Debug.Log($" SetHandBaseScore: Ranking: {cardRanking}, Chip: {chip}, Mult: {mult}");
-        // 족보별 애니메이션 처리(chip, mult 세팅)
     }
 
+    
     private void UpdateScoreUI()
     {
         scoreChanged?.Invoke(totalScore);
@@ -98,4 +143,6 @@ public class CardCalculator
     {
         chipChanged?.Invoke(chip, mult);
     }
+
+
 }

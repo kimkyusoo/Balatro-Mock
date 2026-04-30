@@ -16,6 +16,13 @@ public class HandEvaluator
     public void CalculatePairCount(List<PlayCard> selectCardList)
     {
         //Debug.Log($"CalculatePairCount, {selectCardList}");
+        if (selectCardList == null) 
+        { 
+            handRanking = HandRanking.None;
+            cardCalculator.SetHandBaseScore(handRanking);
+            UpdateRankingUI();
+            return; 
+        }
 
         scoreCards.Clear();
         int pairCount = 0;
@@ -41,7 +48,7 @@ public class HandEvaluator
                 }
             }
         }
-        Debug.Log($"CalculatePairCount, pairCount: {pairCount}");
+        //Debug.Log($"CalculatePairCount, pairCount: {pairCount}");
 
         if (pairCount == 0)
         {
@@ -105,7 +112,7 @@ public class HandEvaluator
                 scoreCards.Add(c);
             }
         }
-        Debug.Log($"EvaluateNotPairRanking, handRanking: {handRanking}");
+        //Debug.Log($"EvaluateNotPairRanking, handRanking: {handRanking}");
 
     }
 
@@ -119,7 +126,7 @@ public class HandEvaluator
             case 4: handRanking = HandRanking.FullHouse; break;
             case 6: handRanking = HandRanking.FourCard; break;
         }
-        Debug.Log($"EvaluatePairRanking, handRanking: {handRanking}");
+        //Debug.Log($"EvaluatePairRanking, handRanking: {handRanking}");
 
     }
 

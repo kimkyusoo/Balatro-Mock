@@ -1,6 +1,8 @@
+using DG.Tweening;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Hand : MonoBehaviour
 {
@@ -15,6 +17,16 @@ public class Hand : MonoBehaviour
 
     [SerializeField] private AudioClip selectSound;
 
+    [SerializeField] public Transform deckSpawnPoint;
+
+    [SerializeField] public Transform cardScoreArea;
+
+    [Header("Button Information")]
+    public Button playButton;
+    public Button discardButton;
+    private ColorBlock activeBlock;
+    private ColorBlock inactiveBlock;
+
 
 
     private void Awake()
@@ -24,16 +36,27 @@ public class Hand : MonoBehaviour
         if(calculator == null) calculator = new CardCalculator();
         if(handEvaluator == null) handEvaluator = new HandEvaluator();
         handEvaluator.cardCalculator = calculator;
+
+        SetupButtonColors();
     }
 
     private void Start()
     {
-        DrawHands();
+        UpdateButtonState();
+
+        DG.Tweening.DOVirtual.DelayedCall(1.5f, () =>
+        {
+            DrawHands();
+        });
     }
 
     public void DrawHands()
     {
-        // TODO :: 카드 드로우하는 애니메이션 필요
+        float currentDelay = 0f;
+        float delayStep = 0.12f;
+
+        List<PlayCard> newCards = new List<PlayCard>();
+
         for (int i = 0; i < hands.Length; i++)
         {
             if (hands[i] == null)
@@ -44,22 +67,32 @@ public class Hand : MonoBehaviour
                 {
                     hands[i] = drawnCard;
 
-                    drawnCard.transform.SetParent(this.transform);
-                    drawnCard.gameObject.SetActive(true);
+                    drawnCard.transform.SetParent(transform);
+                    newCards.Add(drawnCard);
 
                 }
             }
         }
+        SetAllCardsInteraction(true);
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
+
         SortCardToRank();
+
+        foreach (var card in newCards)
+        {
+            card.gameObject.SetActive(true);
+            card.PlayDrawAnimation(deckSpawnPoint.position, currentDelay);
+            currentDelay += delayStep;
+        }
     }
 
-    public void SelectCard(PlayCard card)
+    public bool SelectCard(PlayCard card)
     {
         //Debug.Log($"Selected Card - Rank: {card.rank}, Suit: {card.suit}");
-        //TODO :: 카드 선택 및 취소시마다 UI에서 카드가 올라갔다 내려갔다 하는 애니메이션 필요.
-        if (selectCardList.Count > 5) return;
+        if (selectCardList.Count > 5) return false;
         
-        if(selectCardList.Count == 5 && !selectCardList.Contains(card)) return;
+        if(selectCardList.Count == 5 && !selectCardList.Contains(card)) return false;
 
 
         if (selectCardList.Contains(card))
@@ -71,41 +104,70 @@ public class Hand : MonoBehaviour
             if(selectCardList.Count < 5)
             {
                 selectCardList.Add(card);
+                if(selectSound != null) SoundManager.Instance.PlaySfxOneShot(selectSound, 0.3f);
             }
         }
-        SoundManager.Instance.PlaySfxOneShot(selectSound, 0.5f);
+
+        if (selectCardList.Count == 0) handEvaluator.CalculatePairCount(null);
+
+        UpdateButtonState();
+
         handEvaluator.CalculatePairCount(selectCardList);
+
+        return true;
     }
 
     public void ThrowAwayCard()
     {
+        bool canDiscard = RoundManager.Instance != null && RoundManager.Instance.remainDiscard > 0;
+
+        if (selectCardList.Count == 0 || !canDiscard)
+        {
+            PlayButtonErrorFeedback(discardButton.transform);
+            return;
+        }
+        SetAllCardsInteraction(false);
+        SetButtonsLoadingState();
+
         if (!RoundManager.Instance.ConsumeDiscardCount()) return;
-
-        if (selectCardList == null) return;
-
         RoundManager.Instance.UpdateRecord("Discarded", selectCardList.Count);
         ExecuteCardRemoveAndDraw();
     }
     
     public void CalculateCard()
     {
-        if (selectCardList == null) return;
+        if (selectCardList.Count == 0)
+        {
+            PlayButtonErrorFeedback(playButton.transform);
+            return;
+        }
+        SetAllCardsInteraction(false);
+        SetButtonsLoadingState();
 
-        calculator.CalculateScore(handEvaluator);
-        RoundManager.Instance.UpdateRecord("Played", selectCardList.Count);
-        ExecuteCardRemoveAndDraw();
+        calculator.CalculateScoreToSequence(selectCardList, handEvaluator, cardScoreArea.position, () => {
+            RoundManager.Instance.UpdateRecord("Played", selectCardList.Count);
+            ExecuteCardRemoveAndDraw();
+        });
     }
 
     private void ExecuteCardRemoveAndDraw()
     {
-        if (selectCardList == null)
-        {
-            return;
-        }
+        if (selectCardList == null) return;
+
+        float delayOffset = 0f;
 
         foreach (PlayCard card in selectCardList)
         {
-            deck.discardPack.Add(card);
+            card.VisualSelect();
+
+            card.transform.DOMove(deck.transform.position, 0.4f)
+            .SetDelay(delayOffset)
+            .SetEase(Ease.InBack)
+            .OnComplete(() => {
+                // 애니메이션이 완전히 끝난 후 비활성화 처리
+                deck.discardPack.Add(card);
+                card.gameObject.SetActive(false);
+            });
 
             for (int i = 0; i < hands.Length; i++)
             {
@@ -115,11 +177,12 @@ public class Hand : MonoBehaviour
                     break;
                 }
             }
+            delayOffset += 0.05f;
 
-            card.gameObject.SetActive(false);
         }
         selectCardList.Clear();
-        DrawHands();
+        UpdateButtonState();
+        DOVirtual.DelayedCall(0.3f, () => DrawHands());
     }
 
     private void SortCardToRank()
@@ -137,4 +200,51 @@ public class Hand : MonoBehaviour
             }
         }
     }
+
+    public void SetupButtonColors()
+    {
+        activeBlock = ColorBlock.defaultColorBlock;
+        activeBlock.normalColor = Color.white;
+        activeBlock.highlightedColor = new Color(0.9f, 0.9f, 0.9f);
+        activeBlock.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+        activeBlock.selectedColor = Color.white;
+
+        inactiveBlock = ColorBlock.defaultColorBlock;
+        Color gray = new Color(0.4f, 0.4f, 0.4f, 1f);
+        inactiveBlock.normalColor = gray;
+        inactiveBlock.highlightedColor = gray;
+        inactiveBlock.pressedColor = gray;
+        inactiveBlock.selectedColor = gray;
+    }
+
+    public void UpdateButtonState()
+    {
+        bool hasSelection = selectCardList.Count > 0;
+        bool canDiscard = RoundManager.Instance != null && RoundManager.Instance.remainDiscard > 0;
+
+        playButton.colors = hasSelection ? activeBlock : inactiveBlock;
+
+        discardButton.colors = (hasSelection && canDiscard) ? activeBlock : inactiveBlock;
+    }
+
+    private void SetButtonsLoadingState()
+    {
+        playButton.colors = inactiveBlock;
+        discardButton.colors = inactiveBlock;
+    }
+
+    private void PlayButtonErrorFeedback(Transform target)
+    {
+        target.DOKill();
+        target.DOPunchPosition(new Vector3(10, 0, 0), 0.3f, 20, 0.5f);
+    }
+
+    private void SetAllCardsInteraction(bool canInteract)
+    {
+        foreach (var card in hands)
+        {
+            if (card != null) card.SetInteraction(canInteract);
+        }
+    }
+
 }

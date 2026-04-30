@@ -17,7 +17,16 @@ public class InGameUI : MonoBehaviour
 
     public Transform slotUIParent;
 
+    [Header("Sound")]
+    [SerializeField] private AudioClip gameStartMusic;
 
+    private void Awake()
+    {
+        if (SoundManager.Instance != null && gameStartMusic != null)
+        {
+            SoundManager.Instance.PlayBgm(gameStartMusic, 0.3f, false);
+        }
+    }
     private void Start()
     {
         if (RoundManager.Instance != null)

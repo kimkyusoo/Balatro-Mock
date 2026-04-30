@@ -22,7 +22,7 @@ public class GameRecordUI : MonoBehaviour
 
         if (SoundManager.Instance != null && gameOverMusic != null)
         {
-            SoundManager.Instance.PlayBgm(gameOverMusic, 0.5f, false);
+            SoundManager.Instance.PlayBgm(gameOverMusic, 0.3f, false);
         }
     }
 
